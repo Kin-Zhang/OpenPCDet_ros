@@ -54,7 +54,7 @@ from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.utils import box_utils, calibration_kitti, common_utils, object3d_kitti
 
 # Global variables
-calib_file = '/workspace/team_code/catkin_ws/src/t4ac_perception/openpcdet/calib_files/carla.txt'
+calib_file = '/workspace/team_code/catkin_ws/src/t4ac_perception/OpenPCDet_ROS/calib_files/carla.txt'
 cfg_root = "/workspace/installations/OpenPCDet/tools/cfgs"
 movelidarcenter = 20 
 threshold = 0.4
