@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="openpcdet" type="inference.py" name="object_3d_detector_node" output="screen"/>
+</launch>
