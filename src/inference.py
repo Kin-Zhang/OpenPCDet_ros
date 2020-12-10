@@ -41,7 +41,6 @@ from visualization_msgs.msg import MarkerArray, Marker
 from t4ac_msgs.msg import BEV_detection, BEV_detections_list
 
 # Math and geometry imports
-import sympy as sym
 import math
 import numpy as np
 import torch
@@ -54,20 +53,18 @@ from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.utils import box_utils, calibration_kitti, common_utils, object3d_kitti
 
 # Global variables
-calib_file = '/workspace/team_code/catkin_ws/src/t4ac_perception/OpenPCDet_ROS/calib_files/carla.txt'
-cfg_root = "/workspace/installations/OpenPCDet/tools/cfgs"
-movelidarcenter = 20 
-threshold = 0.4
+calib_file = "/root/catkin_ws/src/OpenPCDet_ROS/calib_files/carla.txt"
+cfg_root = "/root/OpenPCDet/tools/cfgs"
+
+move_lidar_center = 20 
+threshold = 0.0
+rc = 0.0
+
 image_shape = np.asarray([375, 1242])
 inference_time_list = []
-rc = 0
-predicted_collision = Bool()
-predicted_collision.data = False
-flag_collision = False
 
-current_time = time.time()
-previous_time = time.time()
-cumulative_time = 0
+display_rviz = True
+bev_camera = True
 
 # Auxiliar functions 
 
@@ -182,9 +179,7 @@ def xyz_array_to_pointcloud2(points_sum, stamp=None, frame_id=None):
 def anno_to_bev_detections(dt_box_lidar, scores, types, msg):
     """
     """
-    global current_time, previous_time, cumulative_time, predicted_collision, flag_collision
-    display_rviz = True
-
+ 
     xmax = rc * 10/130
     xmin = 0
     ymax = 1.5
@@ -195,12 +190,16 @@ def anno_to_bev_detections(dt_box_lidar, scores, types, msg):
     bev_detections_list = BEV_detections_list()
     bev_detections_list.header.stamp = msg.header.stamp
     bev_detections_list.header.frame_id = msg.header.frame_id 
-    
+
+    point_cloud_range = cfg.DATA_CONFIG.POINT_CLOUD_RANGE
+    bev_detections_list.front = point_cloud_range[3] - move_lidar_center
+    bev_detections_list.back = point_cloud_range[0] - move_lidar_center
+    bev_detections_list.left = point_cloud_range[1]
+    bev_detections_list.right = point_cloud_range[4]
+
     if scores.size != 0:
         for i in range(scores.size):
             if scores[i] > threshold: 
-                x = float(dt_box_lidar[i][0]) - movelidarcenter
-                y = float(dt_box_lidar[i][1])
                 z = float(dt_box_lidar[i][2])
                 l = float(dt_box_lidar[i][3])
                 w = float(dt_box_lidar[i][4])
@@ -213,24 +212,32 @@ def anno_to_bev_detections(dt_box_lidar, scores, types, msg):
                 if yaw > math.pi:
                     yaw = yaw - math.pi
 
-                R = rotz(-yaw)
+                if bev_camera: # BEV camera frame
+                    x = -float(dt_box_lidar[i][1])
+                    y = -(float(dt_box_lidar[i][0]) - move_lidar_center)
+                    yaw_bev = yaw# - math.pi/2
+                else: # BEV LiDAR frame
+                    x = float(dt_box_lidar[i][0]) - move_lidar_center
+                    y = float(dt_box_lidar[i][1])
+                    yaw_bev = yaw
+                
+                R = rotz(-yaw_bev)
 
                 corners_3d = np.dot(R, np.vstack([x_corners,y_corners,z_corners]))[0:2]
 
                 bev_detection = BEV_detection()
-
-                # bev_detection.type = str(types[i])
+                bev_detection.type = str(int(types[i]))
                 bev_detection.score = scores[i]
 
                 bev_detection.x = x
                 bev_detection.y = y
                 bev_detection.tl_br = [0,0,0,0] #2D bbox top-left, bottom-right  xy coordinates
-                                   # Upper left     Upper right      # Lower left     # Lower right
+                                          # Upper left     Upper right      # Lower left     # Lower right
                 bev_detection.x_corners = [corners_3d[0,0], corners_3d[0,1], corners_3d[0,2], corners_3d[0,3]]
                 bev_detection.y_corners = [corners_3d[1,0], corners_3d[1,1], corners_3d[1,2], corners_3d[1,3]]
                 bev_detection.l = l
                 bev_detection.w = w
-                bev_detection.o = yaw
+                bev_detection.o = yaw_bev
 
                 bev_detections_list.bev_detections_list.append(bev_detection)
 
@@ -241,8 +248,8 @@ def anno_to_bev_detections(dt_box_lidar, scores, types, msg):
                     detected_3D_object_marker.type = Marker.CUBE
                     detected_3D_object_marker.id = i
                     detected_3D_object_marker.lifetime = rospy.Duration.from_sec(1)
-                    detected_3D_object_marker.pose.position.x = x
-                    detected_3D_object_marker.pose.position.y = y
+                    detected_3D_object_marker.pose.position.x = float(dt_box_lidar[i][0]) - move_lidar_center
+                    detected_3D_object_marker.pose.position.y = float(dt_box_lidar[i][1])
                     detected_3D_object_marker.pose.position.z = z
                     q = yaw2quaternion(yaw)
                     detected_3D_object_marker.pose.orientation.x = q[1] 
@@ -256,7 +263,6 @@ def anno_to_bev_detections(dt_box_lidar, scores, types, msg):
                     detected_3D_object_marker.color.g = 0
                     detected_3D_object_marker.color.b = 255
                     detected_3D_object_marker.color.a = 0.5
-
                     detected_3D_objects_marker_array.markers.append(detected_3D_object_marker)
 
     pub_detected_obstacles.publish(bev_detections_list)
@@ -374,7 +380,7 @@ class Processor_ROS:
         timestamps[:] = frame
 
         self.points = np.append(self.points, timestamps, axis=1)
-        self.points[:,0] += movelidarcenter
+        self.points[:,0] += move_lidar_center
 
         input_dict = {
             'points': self.points,
@@ -446,7 +452,7 @@ if __name__ == "__main__":
 
     cfg_from_yaml_file(config_path, cfg)
     
-    sub_ = rospy.Subscriber(sub_lidar_topic[0], PointCloud2, rslidar_callback, queue_size=1, buff_size=2**24)
+    sub_ = rospy.Subscriber(sub_lidar_topic[1], PointCloud2, rslidar_callback, queue_size=1, buff_size=2**24)
     sub_ = rospy.Subscriber('/control/rc', Float64, rc_callback, queue_size=20)
 
     pub_detected_obstacles = rospy.Publisher('/perception/detection/bev_lidar_obstacles', BEV_detections_list, queue_size=5)
