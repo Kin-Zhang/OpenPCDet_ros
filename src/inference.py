@@ -215,7 +215,7 @@ def anno_to_bev_detections(dt_box_lidar, scores, types, msg):
                 if bev_camera: # BEV camera frame
                     x = -float(dt_box_lidar[i][1])
                     y = -(float(dt_box_lidar[i][0]) - move_lidar_center)
-                    yaw_bev = yaw# - math.pi/2
+                    yaw_bev = yaw - math.pi/2
                 else: # BEV LiDAR frame
                     x = float(dt_box_lidar[i][0]) - move_lidar_center
                     y = float(dt_box_lidar[i][1])
