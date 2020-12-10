@@ -57,7 +57,7 @@ calib_file = "/root/catkin_ws/src/OpenPCDet_ROS/calib_files/carla.txt"
 cfg_root = "/root/OpenPCDet/tools/cfgs"
 
 move_lidar_center = 20 
-threshold = 0.0
+threshold = 0.7
 rc = 0.0
 
 image_shape = np.asarray([375, 1242])
@@ -210,7 +210,7 @@ def anno_to_bev_detections(dt_box_lidar, scores, types, msg):
                 z_corners = [0,0,0,0]
 
                 if yaw > math.pi:
-                    yaw = yaw - math.pi
+                    yaw -= math.pi
 
                 if bev_camera: # BEV camera frame
                     x = -float(dt_box_lidar[i][1])
@@ -220,7 +220,7 @@ def anno_to_bev_detections(dt_box_lidar, scores, types, msg):
                     x = float(dt_box_lidar[i][0]) - move_lidar_center
                     y = float(dt_box_lidar[i][1])
                     yaw_bev = yaw
-                
+  
                 R = rotz(-yaw_bev)
 
                 corners_3d = np.dot(R, np.vstack([x_corners,y_corners,z_corners]))[0:2]
@@ -237,7 +237,7 @@ def anno_to_bev_detections(dt_box_lidar, scores, types, msg):
                 bev_detection.y_corners = [corners_3d[1,0], corners_3d[1,1], corners_3d[1,2], corners_3d[1,3]]
                 bev_detection.l = l
                 bev_detection.w = w
-                bev_detection.o = yaw_bev
+                bev_detection.o = -yaw_bev
 
                 bev_detections_list.bev_detections_list.append(bev_detection)
 
