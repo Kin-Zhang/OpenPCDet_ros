@@ -57,7 +57,7 @@ calib_file = "/root/catkin_ws/src/OpenPCDet_ROS/calib_files/carla.txt"
 cfg_root = "/root/OpenPCDet/tools/cfgs"
 
 move_lidar_center = 20 
-threshold = 0.7
+threshold = 0.0
 rc = 0.0
 
 image_shape = np.asarray([375, 1242])
@@ -455,8 +455,8 @@ if __name__ == "__main__":
     sub_ = rospy.Subscriber(sub_lidar_topic[1], PointCloud2, rslidar_callback, queue_size=1, buff_size=2**24)
     sub_ = rospy.Subscriber('/control/rc', Float64, rc_callback, queue_size=20)
 
-    pub_detected_obstacles = rospy.Publisher('/perception/detection/bev_lidar_obstacles', BEV_detections_list, queue_size=5)
-    pub_rviz = rospy.Publisher('/perception/detection/3d_lidar_obstacles_markers', MarkerArray, queue_size=5)
+    pub_detected_obstacles = rospy.Publisher('/t4ac/perception/detection/bev_lidar_obstacles', BEV_detections_list, queue_size=5)
+    pub_rviz = rospy.Publisher('t4ac/perception/detection/3D_lidar_obstacles_markers', MarkerArray, queue_size=5)
     
     print("[+] PCDet ros_node has started.")    
     rospy.spin()
