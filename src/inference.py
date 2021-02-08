@@ -53,11 +53,11 @@ from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.utils import box_utils, calibration_kitti, common_utils, object3d_kitti
 
 # Global variables
-calib_file = "/root/catkin_ws/src/OpenPCDet_ROS/calib_files/carla.txt"
-cfg_root = "/root/OpenPCDet/tools/cfgs"
+calib_file = "/home/robesafe/t4ac_ws/src/t4ac_perception/detection/OpenPCDet-ROS/calib_files/carla.txt"
+cfg_root = "/home/robesafe/t4ac_ws/src/t4ac_perception/detection/libraries/OpenPCDet/tools/cfgs"
 
 move_lidar_center = 20 
-threshold = 0.0
+threshold = 0.5
 rc = 0.0
 
 image_shape = np.asarray([375, 1242])
@@ -358,6 +358,7 @@ class Processor_ROS:
         self.net = self.net.to(self.device).eval()
 
     def get_calib(self, idx):
+        print("Calib file: ", calib_file)
         return calibration_kitti.Calibration(calib_file)
 
     def get_template_prediction(self, num_samples):
@@ -431,13 +432,16 @@ if __name__ == "__main__":
     model_path  = os.path.join(cfg_root,"kitti_models/pointpillar_7728.pth")
 
     proc_1 = Processor_ROS(config_path, model_path)
+    print("Config path: ", config_path)
+    print("Model path: ", model_path)
     proc_1.initialize()
     calib = proc_1.get_calib(calib_file)
-    calib.P2 = calib.P3
-    print("Calib.P", calib.P2)
-    print("Calib.P", calib.P3)
-    print("Calib.R", calib.R0)
-    print("Calib.T", calib.V2C)
+
+    calib.P3 = calib.P2
+    print("Calib.P2: ", calib.P2)
+    print("Calib.P3: ", calib.P3)
+    print("Calib.R0: ", calib.R0)
+    print("Calib.T (Velo2Cam): ", calib.V2C)
     
     rospy.init_node('object_3d_detector_node')
     sub_lidar_topic = [ "/velodyne_points", 
