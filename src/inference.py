@@ -1,44 +1,28 @@
-#! /usr/bin/env python
-
+#! /usr/bin/env python3.8
 """
 Created on Thu Aug  6 11:27:43 2020
 
 @author: Javier del Egido Sierra and Carlos Gómez-Huélamo
 
-Code to 
+===
 
-Communications are based on ROS (Robot Operating Sytem)
+Modified on 23 Dec 2022
+@author: Kin ZHANG (kin_eng@163.com)
 
-Inputs: LiDAR pointcloud
-Outputs: Most relevant obstacles of the environment in the form of 3D bounding boxes
-
-Note that each obstacle shows an unique ID in addition to its semantic information (person, car, ...), 
-in order to make easier the decision making processes.
-
-Executed via Python3.6 (python3.6 inference.py)
+Part of codes also refers: https://github.com/kwea123/ROS_notes
 """
 
 # General use imports
 import os
 import time
-import sys
-import copy
-import json
-import argparse
 import glob
 from pathlib import Path
 
 # ROS imports
 import rospy
 import ros_numpy
-import sensor_msgs.point_cloud2 as pc2
-from sensor_msgs.msg import PointCloud2, PointField, Image, CameraInfo
-from std_msgs.msg import Float64, Float32, Header, Bool
-from message_filters import TimeSynchronizer, Subscriber, ApproximateTimeSynchronizer
 from sensor_msgs.msg import PointCloud2, PointField
-from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 from visualization_msgs.msg import MarkerArray, Marker
-from t4ac_msgs.msg import BEV_detection, BEV_detections_list
 
 # Math and geometry imports
 import math
@@ -52,20 +36,24 @@ from pcdet.models import build_network, load_data_to_gpu
 from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.utils import box_utils, calibration_kitti, common_utils, object3d_kitti
 
+# Kin's utils
+from draw_3d import Draw3DBox
+from global_def import *
+
 # Global variables
-calib_file = "/home/robesafe/t4ac_ws/src/t4ac_perception/detection/OpenPCDet-ROS/calib_files/carla.txt"
-cfg_root = "/home/robesafe/t4ac_ws/src/t4ac_perception/detection/libraries/OpenPCDet/tools/cfgs"
+calib_file = "/home/kin/workspace/OpenPCDet_ws/src/OpenPCDet_ros/calib_files/carla.txt"
+cfg_root = "/home/kin/workspace/OpenPCDet/tools/cfgs/"
+model_path = "/home/kin/workspace/OpenPCDet/tools/"
 
 move_lidar_center = 20 
-threshold = 0.5
-rc = 0.0
+threshold = 0.8
 
 image_shape = np.asarray([375, 1242])
 inference_time_list = []
 
 display_rviz = True
 bev_camera = True
-
+RATE_VIZ = 1.0
 # Auxiliar functions 
 
 def yaw2quaternion(yaw: float) -> Quaternion:
@@ -176,118 +164,28 @@ def xyz_array_to_pointcloud2(points_sum, stamp=None, frame_id=None):
     msg.data = np.asarray(points_sum, np.float32).tostring()
     return msg
 
-def anno_to_bev_detections(dt_box_lidar, scores, types, msg):
-    """
-    """
- 
-    xmax = rc * 10/130
-    xmin = 0
-    ymax = 1.5
-    ymin = -2.0
-
-    detected_3D_objects_marker_array = MarkerArray()
-
-    bev_detections_list = BEV_detections_list()
-    bev_detections_list.header.stamp = msg.header.stamp
-    bev_detections_list.header.frame_id = msg.header.frame_id 
-
-    point_cloud_range = cfg.DATA_CONFIG.POINT_CLOUD_RANGE
-    bev_detections_list.front = point_cloud_range[3] - move_lidar_center
-    bev_detections_list.back = point_cloud_range[0] - move_lidar_center
-    bev_detections_list.left = point_cloud_range[1]
-    bev_detections_list.right = point_cloud_range[4]
-
-    if scores.size != 0:
-        for i in range(scores.size):
-            if scores[i] > threshold: 
-                z = float(dt_box_lidar[i][2])
-                l = float(dt_box_lidar[i][3])
-                w = float(dt_box_lidar[i][4])
-                yaw = float(dt_box_lidar[i][6])
-
-                x_corners = [-l/2,-l/2,l/2, l/2]
-                y_corners = [ w/2,-w/2,w/2,-w/2]
-                z_corners = [0,0,0,0]
-
-                if yaw > math.pi:
-                    yaw -= math.pi
-
-                if bev_camera: # BEV camera frame
-                    x = -float(dt_box_lidar[i][1])
-                    y = -(float(dt_box_lidar[i][0]) - move_lidar_center)
-                    yaw_bev = yaw - math.pi/2
-                else: # BEV LiDAR frame
-                    x = float(dt_box_lidar[i][0]) - move_lidar_center
-                    y = float(dt_box_lidar[i][1])
-                    yaw_bev = yaw
-  
-                R = rotz(-yaw_bev)
-
-                corners_3d = np.dot(R, np.vstack([x_corners,y_corners,z_corners]))[0:2]
-
-                bev_detection = BEV_detection()
-                bev_detection.type = str(int(types[i]))
-                bev_detection.score = scores[i]
-
-                bev_detection.x = x
-                bev_detection.y = y
-                bev_detection.tl_br = [0,0,0,0] #2D bbox top-left, bottom-right  xy coordinates
-                                          # Upper left     Upper right      # Lower left     # Lower right
-                bev_detection.x_corners = [corners_3d[0,0], corners_3d[0,1], corners_3d[0,2], corners_3d[0,3]]
-                bev_detection.y_corners = [corners_3d[1,0], corners_3d[1,1], corners_3d[1,2], corners_3d[1,3]]
-                bev_detection.l = l
-                bev_detection.w = w
-                bev_detection.o = -yaw_bev
-
-                bev_detections_list.bev_detections_list.append(bev_detection)
-
-                if display_rviz:
-                    detected_3D_object_marker = Marker()
-                    detected_3D_object_marker.header.stamp = msg.header.stamp
-                    detected_3D_object_marker.header.frame_id = msg.header.frame_id
-                    detected_3D_object_marker.type = Marker.CUBE
-                    detected_3D_object_marker.id = i
-                    detected_3D_object_marker.lifetime = rospy.Duration.from_sec(1)
-                    detected_3D_object_marker.pose.position.x = float(dt_box_lidar[i][0]) - move_lidar_center
-                    detected_3D_object_marker.pose.position.y = float(dt_box_lidar[i][1])
-                    detected_3D_object_marker.pose.position.z = z
-                    q = yaw2quaternion(yaw)
-                    detected_3D_object_marker.pose.orientation.x = q[1] 
-                    detected_3D_object_marker.pose.orientation.y = q[2]
-                    detected_3D_object_marker.pose.orientation.z = q[3]
-                    detected_3D_object_marker.pose.orientation.w = q[0]
-                    detected_3D_object_marker.scale.x = l
-                    detected_3D_object_marker.scale.y = w
-                    detected_3D_object_marker.scale.z = 3
-                    detected_3D_object_marker.color.r = 0
-                    detected_3D_object_marker.color.g = 0
-                    detected_3D_object_marker.color.b = 255
-                    detected_3D_object_marker.color.a = 0.5
-                    detected_3D_objects_marker_array.markers.append(detected_3D_object_marker)
-
-    pub_detected_obstacles.publish(bev_detections_list)
-    pub_rviz.publish(detected_3D_objects_marker_array)
-
-    return 
 
 def rslidar_callback(msg):
-    """
-    """
+    select_boxs, select_types = [],[]
+    if proc_1.no_frame_id:
+        proc_1.set_viz_frame_id(msg.header.frame_id)
+        print(f"{BC.OKGREEN} setting marker frame id to lidar: {msg.header.frame_id} {BC.ENDC}")
+        proc_1.no_frame_id = False
 
-    frame = msg.header.seq
+    frame = msg.header.seq # frame id -> not timestamp
     msg_cloud = ros_numpy.point_cloud2.pointcloud2_to_array(msg)
     np_p = get_xyz_points(msg_cloud, True)
-
     scores, dt_box_lidar, types, pred_dict = proc_1.run(np_p, calib, frame)
-    anno_to_bev_detections(dt_box_lidar, scores, types, msg)
-
-def rc_callback(msg):
-    """
-    """
-    global rc
-    rc = msg.data
-                    
-# Classes
+    for i, score in enumerate(scores):
+        if score>threshold:
+            select_boxs.append(dt_box_lidar[i])
+            select_types.append(pred_dict['name'][i])
+    if(len(select_boxs)>0):
+        proc_1.pub_rviz.publish_3dbox(np.array(select_boxs), -1, pred_dict['name'])
+        print(f"frame id: {frame}, scores of detection: {scores}, types: {pred_dict['name']}")
+    else:
+        print(f"{BC.FAIL} No confident prediction in this time stamp {BC.ENDC}")
+    print(f" -------------------------------------------------------------- ")
 
 class DemoDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None, ext='.bin'):
@@ -337,7 +235,16 @@ class Processor_ROS:
         self.net = None
         self.voxel_generator = None
         self.inputs = None
-        
+        self.pub_rviz = None
+        self.no_frame_id = True
+        self.rate = RATE_VIZ
+
+    def set_pub_rviz(self, box3d_pub, marker_frame_id = 'velodyne'):
+        self.pub_rviz = Draw3DBox(box3d_pub, marker_frame_id, self.rate)
+    
+    def set_viz_frame_id(self, marker_frame_id):
+        self.pub_rviz.set_frame_id(marker_frame_id)
+
     def initialize(self):
         self.read_config()
         
@@ -347,7 +254,7 @@ class Processor_ROS:
         self.logger = common_utils.create_logger()
         self.demo_dataset = DemoDataset(
             dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
-            root_path=Path("/home/muzi2045/Documents/project/OpenPCDet/data/kitti/velodyne/000001.bin"),
+            root_path=Path("/home/kin/workspace/OpenPCDet/tools/000002.bin"),
             ext='.bin')
         
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -376,16 +283,15 @@ class Processor_ROS:
         num_features = 4 # X,Y,Z,intensity       
         self.points = points.reshape([-1, num_features])
 
-        frame = 0
         timestamps = np.empty((len(self.points),1))
         timestamps[:] = frame
 
-        self.points = np.append(self.points, timestamps, axis=1)
+        # self.points = np.append(self.points, timestamps, axis=1)
         self.points[:,0] += move_lidar_center
 
         input_dict = {
             'points': self.points,
-            'frame_id': frame,
+            # 'frame_id': frame,
         }
 
         data_dict = self.demo_dataset.prepare_data(data_dict=input_dict)
@@ -415,7 +321,6 @@ class Processor_ROS:
         pred_boxes_img = box_utils.boxes3d_kitti_camera_to_imageboxes(
             pred_boxes_camera, calib, image_shape=image_shape
         )
-
         pred_dict['name'] = np.array(cfg.CLASS_NAMES)[types - 1]
         pred_dict['alpha'] = -np.arctan2(-pred_boxes[:, 1], pred_boxes[:, 0]) + pred_boxes_camera[:, 6]
         pred_dict['bbox'] = pred_boxes_img
@@ -428,9 +333,9 @@ class Processor_ROS:
         return scores, boxes_lidar, types, pred_dict
  
 if __name__ == "__main__":
-    config_path = os.path.join(cfg_root,"kitti_models/pointpillar.yaml")
-    model_path  = os.path.join(cfg_root,"kitti_models/pointpillar_7728.pth")
-
+    config_path = os.path.join(cfg_root,"kitti_models/pv_rcnn.yaml")
+    model_path  = os.path.join(model_path,"pv_rcnn_8369.pth")
+    no_frame_id = False
     proc_1 = Processor_ROS(config_path, model_path)
     print("Config path: ", config_path)
     print("Model path: ", model_path)
@@ -444,23 +349,15 @@ if __name__ == "__main__":
     print("Calib.T (Velo2Cam): ", calib.V2C)
     
     rospy.init_node('object_3d_detector_node')
-    sub_lidar_topic = [ "/velodyne_points", 
-                        "/carla/ego_vehicle/lidar/lidar1/point_cloud",
-                        "/kitti_player/hdl64e", 
-                        "/lidar_protector/merged_cloud", 
-                        "/merged_cloud",
-                        "/lidar_top", 
-                        "/roi_pclouds",
-                        "/livox/lidar",
-                        "/SimOneSM_PointCloud_0"]
+    sub_lidar_topic = ["/velodyne_points"]
 
     cfg_from_yaml_file(config_path, cfg)
     
-    sub_ = rospy.Subscriber(sub_lidar_topic[1], PointCloud2, rslidar_callback, queue_size=1, buff_size=2**24)
-    sub_ = rospy.Subscriber('/control/rc', Float64, rc_callback, queue_size=20)
+    sub_ = rospy.Subscriber(sub_lidar_topic[0], PointCloud2, rslidar_callback, queue_size=1, buff_size=2**24)
+    pub_rviz = rospy.Publisher('detect_3dbox',MarkerArray, queue_size=10)
+    proc_1.set_pub_rviz(pub_rviz)
+    print(f"{BC.HEADER} ====================== {BC.ENDC}")
+    print("[+] PCDet ros_node has started.")
+    print(f"{BC.HEADER} ====================== {BC.ENDC}")
 
-    pub_detected_obstacles = rospy.Publisher('/t4ac/perception/detection/bev_lidar_obstacles', BEV_detections_list, queue_size=5)
-    pub_rviz = rospy.Publisher('t4ac/perception/detection/3D_lidar_obstacles_markers', MarkerArray, queue_size=5)
-    
-    print("[+] PCDet ros_node has started.")    
     rospy.spin()
