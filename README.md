@@ -140,7 +140,7 @@ All methods and models are from: [open-mmlab/OpenPCDet](https://github.com/open-
 
 Reference codes:
 
-1. The first version of openpcdet-ros is from: [Cram3r95/OpenPCDet-ROS](Cram3r95/OpenPCDet-ROS)
+1. The first version of openpcdet-ros is from: [Cram3r95/OpenPCDet-ROS](https://github.com/Cram3r95/OpenPCDet-ROS)
 
 2. For 3d box marker drawing: [Youtube AI葵](https://www.youtube.com/watch?v=nIiqo3ZuFCc&list=PLDV2CyUo4q-L4YlXUWDytZPz9a8cAWXST&index=11&ab_channel=AI%E8%91%B5) and [his code](https://github.com/kwea123/ROS_notes)
 
