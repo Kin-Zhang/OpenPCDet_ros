@@ -16,6 +16,8 @@ Test computer and System:
 
 If you don't want to destroy your env/change your system version, please directly <a href="#Docker">check the docker and build dockerfile</a>. But you still have to have a computer with NVIDIA-GPU and can install cuda. Check [Chinese blog Ubuntu下的NVIDIA显卡【驱动&CUDA 安装与卸载】](https://www.cnblogs.com/kin-zhang/p/17007246.html) 
 
+Dataset: [Full KITTI dataset](https://www.cvlibs.net/datasets/kitti/) (Velodyne-64), teaser bag try [onedrive link: kitti_sequence11_half.bag](https://hkustconnect-my.sharepoint.com/:u:/g/personal/qzhangcb_connect_ust_hk/EXqmutFjAbpPsYVe5r91KXEBhLlqP7anlNBJqTMHIOkfqw?e=RoRVgF) only 876Mb
+
 ## Build & RUN
 
 Dependencies:
