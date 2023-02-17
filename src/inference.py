@@ -53,6 +53,7 @@ cfg_root = para_cfg["cfg_root"]
 model_path = para_cfg["model_path"]
 move_lidar_center = para_cfg["move_lidar_center"]
 threshold = para_cfg["threshold"]
+pointcloud_topic = para_cfg["pointcloud_topic"]
 RATE_VIZ = para_cfg["viz_rate"]
 inference_time_list = []
 
@@ -243,11 +244,11 @@ if __name__ == "__main__":
     proc_1 = Processor_ROS(cfg_root, model_path)
     print(f"\n{bc.OKCYAN}Config path: {bc.BOLD}{cfg_root}{bc.ENDC}")
     print(f"{bc.OKCYAN}Model path: {bc.BOLD}{model_path}{bc.ENDC}")
-    print(f"If it's not correct please change in the config file... \n")
+    # print(f"If it's not correct please change in the config file... \n")
 
     proc_1.initialize()
     rospy.init_node('object_3d_detector_node')
-    sub_lidar_topic = ["/velodyne_points"]
+    sub_lidar_topic = [pointcloud_topic]
 
     cfg_from_yaml_file(cfg_root, cfg)
     
