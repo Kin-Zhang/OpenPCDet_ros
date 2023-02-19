@@ -230,8 +230,6 @@ class Processor_ROS:
 
         pred_boxes = np.copy(boxes_lidar)
         pred_dict = self.get_template_prediction(scores.shape[0])
-        if scores.shape[0] == 0:
-            return pred_dict
 
         pred_dict['name'] = np.array(cfg.CLASS_NAMES)[types - 1]
         pred_dict['score'] = scores
