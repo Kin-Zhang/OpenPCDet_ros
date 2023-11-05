@@ -99,7 +99,7 @@ class Draw3DBox:
     def set_frame_id(self, marker_frame_id):
         self.frame_id = marker_frame_id
 
-    def publish_3dbox(self, dt_box_lidar, track_ids, types=None, publish_id=True, move_lidar_center=20):
+    def publish_3dbox(self, dt_box_lidar, track_ids, types=None, publish_id=True, move_lidar_center=20, publish_type=True):
         """
         Publish 3d boxes in velodyne coordinate, with color specified by object_types
         If object_types is None, set all color to cyan
@@ -175,6 +175,33 @@ class Draw3DBox:
                     text_marker.color.r = r/255.0
                     text_marker.color.g = g/255.0
                     text_marker.color.b = b/255.0
+                text_marker.color.a = 1.0
+                marker_array.markers.append(text_marker)
+                
+            if publish_type:
+                text_marker = Marker()
+                text_marker.header.frame_id = self.frame_id
+                text_marker.header.stamp = rospy.Time.now()
+
+                text_marker.id = i + 1000
+                text_marker.action = Marker.ADD
+                text_marker.lifetime = rospy.Duration(self.lifetime)
+                text_marker.type = Marker.TEXT_VIEW_FACING
+
+                bc = (corners_3d_velo[6] + corners_3d_velo[7] + corners_3d_velo[2] + corners_3d_velo[3])/4 # back center
+
+                text_marker.pose.position.x = bc[0]
+                text_marker.pose.position.y = bc[1]
+                text_marker.pose.position.z = bc[2] + 1.5
+
+                text_marker.text = types[i]
+                text_marker.scale.x = 1
+                text_marker.scale.y = 1
+                text_marker.scale.z = 1
+                b, g, r = DETECTION_COLOR_MAP[types[i]]
+                text_marker.color.r = r/255.0
+                text_marker.color.g = g/255.0
+                text_marker.color.b = b/255.0
                 text_marker.color.a = 1.0
                 marker_array.markers.append(text_marker)
 
