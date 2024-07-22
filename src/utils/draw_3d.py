@@ -106,8 +106,6 @@ class Draw3DBox:
         corners_3d_velos : list of (8, 4) 3d corners
         """
         # (N, 8, 3)
-        # -move_lidar_center
-        # dt_box_lidar[:,0] = dt_box_lidar[:,0]-move_lidar_center
         corners_3d_velos = boxes_to_corners_3d(dt_box_lidar)
 
         marker_array = MarkerArray()

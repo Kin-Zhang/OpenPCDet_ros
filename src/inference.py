@@ -51,7 +51,6 @@ with open(f"{BASE_DIR}/launch/config.yaml", 'r') as f:
 
 cfg_root = para_cfg["cfg_root"]
 model_path = para_cfg["model_path"]
-move_lidar_center = para_cfg["move_lidar_center"]
 threshold = para_cfg["threshold"]
 pointcloud_topic = para_cfg["pointcloud_topic"]
 RATE_VIZ = para_cfg["viz_rate"]
@@ -202,9 +201,6 @@ class Processor_ROS:
         print(f"Total points: {self.points.shape[0]}")
         timestamps = np.empty((len(self.points),1))
         timestamps[:] = frame
-
-        # self.points = np.append(self.points, timestamps, axis=1)
-        # self.points[:,0] += move_lidar_center
 
         input_dict = {
             'points': self.points,
