@@ -99,7 +99,7 @@ class Draw3DBox:
     def set_frame_id(self, marker_frame_id):
         self.frame_id = marker_frame_id
 
-    def publish_3dbox(self, dt_box_lidar, track_ids, types=None, publish_id=True, move_lidar_center=20, publish_type=True):
+    def publish_3dbox(self, dt_box_lidar, track_ids, types=None, publish_id=True, publish_type=True):
         """
         Publish 3d boxes in velodyne coordinate, with color specified by object_types
         If object_types is None, set all color to cyan
@@ -107,7 +107,7 @@ class Draw3DBox:
         """
         # (N, 8, 3)
         # -move_lidar_center
-        dt_box_lidar[:,0] = dt_box_lidar[:,0]-move_lidar_center
+        # dt_box_lidar[:,0] = dt_box_lidar[:,0]-move_lidar_center
         corners_3d_velos = boxes_to_corners_3d(dt_box_lidar)
 
         marker_array = MarkerArray()

@@ -133,7 +133,8 @@ roslaunch openpcdet 3d_object_detector.launch
 
 - [x] finished `Dockerfile`
 
-- [x] 已知的hard code 有个move_lidar_center的变量 不知道为啥之前的人设置为20，但是实际上openpcdet里无 建议TODO 看一下！ 把hardcode都写到config里！
+- [x] ~已知的hard code 有个move_lidar_center的变量 不知道为啥之前的人设置为20，但是实际上openpcdet里无 建议TODO 看一下！~ Removed
+- [x]  把hardcode都写到config里！
 - [ ] 如果能直接标记点云可能会更好？
 
 

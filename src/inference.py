@@ -198,12 +198,13 @@ class Processor_ROS:
         t_t = time.time()
         num_features = 4 # X,Y,Z,intensity       
         self.points = points.reshape([-1, num_features])
-
+        assert self.points.shape[0] > 0, "No points in lidar data, please check your lidar message."
+        print(f"Total points: {self.points.shape[0]}")
         timestamps = np.empty((len(self.points),1))
         timestamps[:] = frame
 
         # self.points = np.append(self.points, timestamps, axis=1)
-        self.points[:,0] += move_lidar_center
+        # self.points[:,0] += move_lidar_center
 
         input_dict = {
             'points': self.points,
