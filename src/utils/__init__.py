@@ -81,8 +81,14 @@ def get_xyz_points(cloud_array, remove_nans=True, dtype=np.float):
         mask = np.isfinite(cloud_array['x']) & np.isfinite(cloud_array['y']) & np.isfinite(cloud_array['z'])
         cloud_array = cloud_array[mask]
 
+    # Check if intensity field exists
+    has_intensity = 'intensity' in cloud_array.dtype.names
+
     points = np.zeros(cloud_array.shape + (4,), dtype=dtype)
     points[...,0] = cloud_array['x']
     points[...,1] = cloud_array['y']
     points[...,2] = cloud_array['z']
+    # Optionally fill in intensity values if available
+    if has_intensity:
+        points[..., 3] = cloud_array['intensity']
     return points
